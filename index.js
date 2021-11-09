@@ -83,9 +83,9 @@ app.post('/process_post_login', urlencodedParser, function (req, res) {
    res.end(JSON.stringify(response));  
 }) 
 
-
-var server = app.listen(8000, function () {  
+const port = Process.env.PORT || 3000;
+var server = app.listen(port, function () {  
   var host = server.address().address  
   var port = server.address().port  
-  console.log("Example app listening at http://%s:%s", host, port || process.env.PORT)  
+  console.log("Example app listening at http://%s:%s", host, port)  
 })  
