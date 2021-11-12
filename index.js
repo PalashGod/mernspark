@@ -28,7 +28,7 @@ app.use(express.urlencoded({ extended: true }));
 // cookie parser middleware
 app.use(cookieParser());
 
-function email(c,m){
+function email(c,s,m){
   var transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -40,7 +40,7 @@ function email(c,m){
 var mailOptions = {
   from: '21051070@kiit.ac.in',
   to: m,
-  subject: 'Sending Email using Node.js',
+  subject: s,
   html: c
 };
 
@@ -102,7 +102,7 @@ app.post('/signup', urlencodedParser, async function (req, res) {
     }
     const result = await haiku.insertOne(doc);
     console.log(`A document was inserted with the _id: ${result.insertedId}`);
-    await email('<a href="https://mypalash.herokuapp.com/activation/'+_name+'/'+_email+'/signup/'+code+'" target="_blank" rel="noopener noreferrer">CLICK ME TO ACTIVATE YOUR ACCOUNT!</a>',_email);
+    await email('<a href="https://mypalash.herokuapp.com/activation/'+_name+'/'+_email+'/signup/'+code+'" target="_blank" rel="noopener noreferrer">CLICK ME TO ACTIVATE YOUR ACCOUNT!</a>',"Activation link for mypalash MERN App",_email);
     res.render('account_activation', {name:_name,email:_email});
     } catch (err) {
     console.log(err);
