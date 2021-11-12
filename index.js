@@ -3,6 +3,10 @@ var app = express();
 var nodemailer = require('nodemailer');
 var bodyParser = require('body-parser'); 
 const {MongoClient} = require('mongodb');
+
+const cookieParser = require("cookie-parser");
+const sessions = require('express-session');
+var session;
 var urlencodedParser = bodyParser.urlencoded({ extended: false }) 
 app.set('views', './views'); 
 // Set EJS as templating engine
@@ -10,6 +14,19 @@ app.set('view engine', 'ejs');
 
 const uri = "mongodb+srv://Demo:Demopass@cluster0.pdzgr.mongodb.net/myFirstDatabase?retryWrites=true&w=majority";
 
+const onefrthDay = 1000 * 60*60*6;
+app.use(sessions({
+    secret: "thisismysecrctekeyfhrgfgrfrty84fwir767",
+    saveUninitialized:true,
+    cookie: { maxAge: onefrthDay },
+    resave: false
+}));
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// cookie parser middleware
+app.use(cookieParser());
 
 function email(c,m){
   var transporter = nodemailer.createTransport({
@@ -46,60 +63,17 @@ function getRandomString(length) {
 }
  
 const client = new MongoClient(uri);
-async function signup(a,b,c) {
-  try {
-    await client.connect();
-    const database = client.db("sample_mern");
-    const haiku = database.collection("haiku");
 
-    const doc = {
-      name: a,
-      email: b,
-      pass: c,
+
+app.get('/',(req,res) => {
+    session=req.session;
+    console.log(session.userid);
+    if(session.userid){
+        res.render('dashboard', {name:session.username});
+    }else{
+      res.sendFile( __dirname + "/" + "index.html" );  
     }
-    const result = await haiku.insertOne(doc);
-    console.log(`A document was inserted with the _id: ${result.insertedId}`);
-
-  } finally {
-    await client.close();
-  }
-}
-
-
-async function signin(a,b) {
-  try {
-    await client.connect();
-    const database = client.db("sample_mern");
-    const haiku = database.collection("haiku");
-    const query = { email:a,pass:b};
-    const options = {
-      projection: { _id: 0, name: 1, email: 1 ,pass:1},
-    };
-    const info = await haiku.findOne(query, options);
-    if (info.email==a&info.pass==b) {
-
-      return("Found");
-    } else {
-
-        return("Not Found");
-    }
-  } 
-
-catch(err) {
-  return("Not Found");
-} 
-
-  finally {
-    await client.close();
-  }
-}
-
-//signin("palash.emperor7@gmail.com","paswrd").catch(console.dir);
-//
-
-app.get('/', function (req, res) {  
-   res.sendFile( __dirname + "/" + "index.html" );  
-})
+});
 
 app.post('/signup', urlencodedParser, async function (req, res) {  
   try {
@@ -128,7 +102,7 @@ app.post('/signup', urlencodedParser, async function (req, res) {
     }
     const result = await haiku.insertOne(doc);
     console.log(`A document was inserted with the _id: ${result.insertedId}`);
-    await email('<a href="google.com/activation/'+_name+'/'+_email+'/signup/'+code+'">CLICK ME TO ACTIVATE YOUR ACCOUNT!</a>',_email);
+    await email('<a href="https://mypalash.herokuapp.com/activation/'+_name+'/'+_email+'/signup/'+code+'" target="_blank" rel="noopener noreferrer">CLICK ME TO ACTIVATE YOUR ACCOUNT!</a>',_email);
     res.render('account_activation', {name:_name,email:_email});
     } catch (err) {
     console.log(err);
@@ -138,8 +112,6 @@ app.post('/signup', urlencodedParser, async function (req, res) {
   }
 
 }) 
-
-
 
 
 app.get('/activation/:userId/:userEmail/signup/:code',async function (req, res) {
@@ -160,8 +132,7 @@ try {
           var myquery = {email:req.params['userEmail']};
           var newvalues = { $set: {activation:1} };
           await haiku.updateOne(myquery, newvalues);
-
-        return res.send("Account Activated");
+         return res.render('congrats');
       } else {
         return res.send("Invalid Link");
       }
@@ -179,18 +150,53 @@ try {
 
 
 
-app.post('/process_post_login', urlencodedParser, function (req, res) {  
-   response = {  
-       email:req.body.email_,
-       password:req.body.password_   
-   };  
-     
-   //signin(req.body.email_,req.body.password_).catch(console.dir);
-   console.log(signin(req.body.email_,req.body.password_));
-   res.send('<p>some html</p>');
-   //res.end(JSON.stringify(response));  
+app.post('/login', urlencodedParser, async function (req, res) {  
+   try {
+    await client.connect();
+    const database = client.db("sample_mern");
+    const haiku = database.collection("haiku");
+     const {email_, password_} = req.body;
+     console.log(email_+password_);
+     const query = {email:email_};
+     if (!(email_ && password_)) {
+      res.status(400).send("All input is required");
+    } 
+     const options = {
+      projection: { _id: 1, name: 1, email: 1 ,pass:1,activation:1,
+      activation_pass:1},
+    };
+    const oldUser = await haiku.findOne(query, options);
+    if (oldUser&&oldUser.activation==1) {
+      if (oldUser.email==email_&&oldUser.pass==password_){
+        session=req.session;
+        session.userid=email_;
+        session.username=oldUser.name;
+        console.log(req.session);
+        res.redirect('/');
+      }
+      else{
+        res.send("Email or Password wrong!");
+      }
+    }
+    else{
+      res.send("Please Register");
+    }
+    
+    } catch (err) {
+    console.log(err);
+  }
+  finally {
+     client.close();
+  } 
 }) 
 
+
+
+
+app.get('/logout',(req,res) => {
+    req.session.destroy();
+    res.redirect('/');
+});
 
 const port = process.env.PORT || 8000;
 var server = app.listen(port, function () {  
