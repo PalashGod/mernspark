@@ -33,7 +33,7 @@ function email(c,s,m){
   service: 'gmail',
   auth: {
     user: '21051070@kiit.ac.in',
-    pass: "N]2`Eb@{"
+    pass: 'vpqjfeklsmnihsfe'
   }
 });
 
@@ -61,7 +61,7 @@ function getRandomString(length) {
     }
     return result;
 }
- 
+
 const client = new MongoClient(uri);
 
 
